@@ -31,7 +31,7 @@ public class Minesweeper {
 
   private class Cell extends JButton {
     Image cellTile = ImageIO.read(Objects.requireNonNull(getClass().getResource("tile.png")));
-    Image cellTileFlag = ImageIO.read(Objects.requireNonNull(getClass().getResource("greySquare.png")));
+    Image cellTileFlag = ImageIO.read(Objects.requireNonNull(getClass().getResource("TileFlag.png")));
     Image tileFlagScaled;
     private final int row, col;
     private boolean isFlagged = false;
@@ -57,12 +57,12 @@ public class Minesweeper {
           if (e.getButton() == MouseEvent.BUTTON3 && !firstTurn) {
             if(isEnabled() && !isFlagged) {
               isFlagged = true;
-              System.out.println("Flagged at row: " + (row + 1) + "      col: " + (col + 1));
+              //System.out.println("Flagged at row: " + (row + 1) + "      col: " + (col + 1));
               setIcon(new ImageIcon(tileFlagScaled));
               e.getComponent().repaint();
             } else if(isEnabled() && isFlagged) {
               isFlagged = false;
-              System.out.println("Unflagged at row: " + (row + 1) + "      col: " + (col + 1));
+              //System.out.println("Unflagged at row: " + (row + 1) + "      col: " + (col + 1));
               setIcon(new ImageIcon(tileScaled));
               e.getComponent().repaint();
             }
@@ -91,7 +91,7 @@ public class Minesweeper {
         } else if(temp.equals("8")) {
           label.setForeground(new Color(163,159,136,255));
         } else if(temp.equals("X")) {
-          label.setForeground(new Color(227, 25, 32,255));
+          label.setForeground(new Color(187, 20, 26,255));
         }
         label.setText(temp);
 
@@ -121,7 +121,11 @@ public class Minesweeper {
 
           tileScaled = cellTile.getScaledInstance(buttonWidth, buttonHeight, java.awt.Image.SCALE_SMOOTH);
           tileFlagScaled = cellTileFlag.getScaledInstance(buttonWidth, buttonHeight, java.awt.Image.SCALE_SMOOTH);
-          btn.setIcon(new ImageIcon(tileScaled));
+          if(!isFlagged) {
+            btn.setIcon(new ImageIcon(tileScaled));
+          } else if(isFlagged) {
+            btn.setIcon(new ImageIcon(tileFlagScaled));
+          }
           btn.add(label, BorderLayout.CENTER);
           label.setHorizontalAlignment(btn.CENTER);
           label.setVerticalAlignment(btn.CENTER);
@@ -149,8 +153,8 @@ public class Minesweeper {
               insetLeft = Math.abs((frame.getWidth() - gSize.height) / 2);
               insetRight = insetLeft;
             } else if (frame.getHeight() > frame.getWidth() + 25) {
-              insetTop = Math.abs((frame.getHeight() - gSize.width) / 2);
-              insetBottom = Math.abs((frame.getHeight() - gSize.width) / 2 - 20);
+              insetTop = Math.abs((frame.getHeight() - gSize.width) / 2 - 25);
+              insetBottom = Math.abs((frame.getHeight() - gSize.width) / 2 - 25);
             }
             padding = BorderFactory.createEmptyBorder(insetTop, insetLeft, insetBottom, insetRight);
           }
@@ -204,6 +208,7 @@ public class Minesweeper {
       setValue(0);
       setEnabled(true);
       setText("");
+      setUnflagged();
       setIcon(new ImageIcon(tileScaled));
     }
 
@@ -279,7 +284,7 @@ public class Minesweeper {
     frame.setSize(SIZE - 25, SIZE);
     frame.setMinimumSize(new Dimension(500, 500));
     frame.setLayout(new BorderLayout());
-    /*
+
     JMenuBar menuBar = new JMenuBar();    //Creates Toolbar above
     JMenu menuGame = new JMenu("Game");
     JMenu menuHelp = new JMenu("Help");
@@ -291,7 +296,7 @@ public class Minesweeper {
     menuBar.add(menuGame);
     menuBar.add(menuHelp);
     frame.setJMenuBar(menuBar);
-    */
+
     this.gridSize = gridSize;
     cells = new Cell[gridSize][gridSize];
 
@@ -301,7 +306,6 @@ public class Minesweeper {
     frame.setLocationRelativeTo(null);
     frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     frame.setVisible(true);
-    System.out.println(buttonPanelHeight);
   }
 
   private void initializeButtonPanel() {
@@ -340,7 +344,6 @@ public class Minesweeper {
     }
     createMines();
     frame.add(grid, BorderLayout.CENTER);
-    System.out.println(frame.getHeight());    //TODO: THings
   }
 
   private void resetAllCells() {
@@ -369,8 +372,8 @@ public class Minesweeper {
     // Initialize mines
     for (int index = 0; index < mineCount; index++) {
       int choice = random.nextInt(positions.size());
-      int row    = choice / gridSize;
-      int col    = choice % gridSize;
+      int row = choice / gridSize;
+      int col = choice % gridSize;
       cells[row][col].setValue(MINE);
       positions.remove(choice);
     }
@@ -467,17 +470,14 @@ public class Minesweeper {
 
     if (won) {
       JOptionPane.showMessageDialog(
-              frame, "You have won!", "Congratulations",
-              JOptionPane.INFORMATION_MESSAGE
+        frame, "You have won!", "Congratulations",
+        JOptionPane.INFORMATION_MESSAGE
       );
     }
   }
 
   private static void run(final int gridSize) throws IOException {
     try {
-      // Totally optional. But this applies the look and
-      // feel for the current OS to the application,
-      // making it look native.
       UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
     } catch (Exception ignore) { }
     // Launch the program
