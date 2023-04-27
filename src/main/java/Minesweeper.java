@@ -4,6 +4,8 @@ import javax.swing.border.Border;
 import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.util.*;
 
@@ -11,38 +13,33 @@ public class Minesweeper {
   // The value assigned to cells marked as mines. 10 works
   // because no cell will have more than 8 neighbouring mines.
   Dimension screenSize = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds().getSize();
-  int screenHeight = (int) screenSize.getHeight();
+  private final JFrame frame;
   JPanel contentPanel = new JPanel();
   Container grid = new Container();
-  private static final int MINE = 10;
-  // The size in pixels for the frame.
-  private static final int SIZE = 500;
-
+  private static final int MINE = 10, SIZE = 500;   //Size is frame size in pixels
+  int screenHeight = (int) screenSize.getHeight();
   // The number of mines at generated is the grid size * this constant
   private static final double POPULATION_CONSTANT = 1.7;
 
   // This fixed amount of memory is to avoid repeatedly declaring
   // new arrays every time a cell's neighbours are to be retrieved.
   private static Cell[] reusableStorage = new Cell[8];
-  private int insetTop = 30;
-  private int insetLeft = 20;
-  private int insetRight = 20;
-  private int insetBottom = 10;
+  private int insetTop = 30, insetLeft = 20, insetRight = 20, insetBottom = 10, gridSize, buttonPanelHeight;
   Border padding = BorderFactory.createEmptyBorder(insetTop, insetLeft, insetBottom, insetRight);
-  private int gridSize;
   private Cell[][] cells;
-  private final JFrame frame;
-  private int buttonPanelHeight;
-  private boolean fullscreen = false;
-  private boolean firstTurn = true;
-
-
+  private boolean fullscreen = false, firstTurn = true;
 
   private class Cell extends JButton {
-    Image img = ImageIO.read(Objects.requireNonNull(getClass().getResource("tile.png")));
-    private final int row;
-    private final int col;
-    private int value;
+    Image cellTile = ImageIO.read(Objects.requireNonNull(getClass().getResource("tile.png")));
+    Image cellTileFlag = ImageIO.read(Objects.requireNonNull(getClass().getResource("greySquare.png")));
+    Image tileFlagScaled;
+    private final int row, col;
+    private boolean isFlagged = false;
+    private int value, buttonWidth, buttonHeight;
+    Image tileScaled = cellTile.getScaledInstance(buttonWidth +1, buttonHeight + 1, java.awt.Image.SCALE_SMOOTH);
+    private void setUnflagged() {
+      isFlagged = false;
+    }
 
     Cell(final int row, final int col) throws IOException {
       JLabel label = new JLabel("");
@@ -53,7 +50,24 @@ public class Minesweeper {
         Object source = e.getSource();
         handleCell((Cell) source);
         ((Cell) source).setFont(new Font("Tahoma", Font.PLAIN, 1));
-
+      });
+      addMouseListener(new MouseAdapter() {   //Handles flagging and right clicks
+        @Override
+        public void mouseClicked(MouseEvent e) {
+          if (e.getButton() == MouseEvent.BUTTON3 && !firstTurn) {
+            if(isEnabled() && !isFlagged) {
+              isFlagged = true;
+              System.out.println("Flagged at row: " + (row + 1) + "      col: " + (col + 1));
+              setIcon(new ImageIcon(tileFlagScaled));
+              e.getComponent().repaint();
+            } else if(isEnabled() && isFlagged) {
+              isFlagged = false;
+              System.out.println("Unflagged at row: " + (row + 1) + "      col: " + (col + 1));
+              setIcon(new ImageIcon(tileScaled));
+              e.getComponent().repaint();
+            }
+          }
+        }
       });
       addPropertyChangeListener(evt -> {
         Object source = evt.getSource();
@@ -102,9 +116,12 @@ public class Minesweeper {
           } else {
             size.height = -1;
           }
+          buttonWidth = size.width;
+          buttonHeight = size.height;
 
-          Image scaled = img.getScaledInstance(size.width, size.height, java.awt.Image.SCALE_SMOOTH);
-          btn.setIcon(new ImageIcon(scaled));
+          tileScaled = cellTile.getScaledInstance(buttonWidth, buttonHeight, java.awt.Image.SCALE_SMOOTH);
+          tileFlagScaled = cellTileFlag.getScaledInstance(buttonWidth, buttonHeight, java.awt.Image.SCALE_SMOOTH);
+          btn.setIcon(new ImageIcon(tileScaled));
           btn.add(label, BorderLayout.CENTER);
           label.setHorizontalAlignment(btn.CENTER);
           label.setVerticalAlignment(btn.CENTER);
@@ -112,17 +129,9 @@ public class Minesweeper {
           label.setVerticalTextPosition(btn.CENTER);
 
           Dimension gSize = grid.getSize();
-          //System.out.println("G: " + gSize);
-          Insets gInsets = grid.getInsets();    //TODO: This is the thing
-
-
+          Insets gInsets = grid.getInsets();
           gSize.width -= gInsets.left + gInsets.right;
           gSize.height -= gInsets.top + gInsets.bottom;
-          //System.out.println(gSize.width);
-          //System.out.println(gSize.height);
-          //System.out.println("=====================================");
-          //System.out.println("Height: " + frame.getHeight());
-          //System.out.println("Width: " + frame.getWidth());
 
           /**
            * This is working code, here as a fallback
@@ -133,7 +142,7 @@ public class Minesweeper {
             insetBottom = 10;
             insetLeft = 50;
             insetRight = 50;
-            if(frame.getHeight()>= screenHeight) {
+            if(frame.getHeight() == screenHeight) {
               insetLeft = Math.abs((frame.getWidth() - gSize.width) / 2);
               insetRight = Math.abs((frame.getWidth() - gSize.height) / 2);
             } else if (frame.getWidth() + 25 > frame.getHeight()) {
@@ -173,8 +182,6 @@ public class Minesweeper {
           }
            */
           contentPanel.setBorder(padding);
-          //System.out.println("Top: " + insetTop);
-          //System.out.println("Left: " + insetLeft);
           contentPanel.repaint();
         }
       });
@@ -197,11 +204,13 @@ public class Minesweeper {
       setValue(0);
       setEnabled(true);
       setText("");
+      setIcon(new ImageIcon(tileScaled));
     }
 
     void reveal() {
       setEnabled(false);
       setText(isAMine() ? "X" : String.valueOf(value));
+      setIcon(new ImageIcon(tileScaled));
       if(value == 0) {
         setText("");
       }
@@ -318,14 +327,15 @@ public class Minesweeper {
       for (int col = 0; col < gridSize; col++) {
         cells[row][col] = new Cell(row, col);
         grid.add(cells[row][col]);
-        Image img = ImageIO.read(Objects.requireNonNull(getClass().getResource("tile.png")));
         int width = cells[row][col].getWidth() + 10;
         int height = cells[row][col].getHeight() + 10;
+        Image img = ImageIO.read(Objects.requireNonNull(getClass().getResource("tile.png")));
         img = img.getScaledInstance(width, height, Image.SCALE_DEFAULT);
         cells[row][col].setBackground(Color.GRAY);
         cells[row][col].setIcon(new ImageIcon(img));
         cells[row][col].setMargin(new Insets(0, 0, 0, 0));
         cells[row][col].setBorder(null);
+        cells[row][col].repaint();
       }
     }
     createMines();
@@ -376,26 +386,29 @@ public class Minesweeper {
   }
 
   private void handleCell(Cell cell) {
-    if (cell.isAMine() && firstTurn) {
-      createMines();
-      handleCell(cell);
+    if(!cell.isFlagged) {
+      if (cell.isAMine() && firstTurn) {
+        createMines();
+        handleCell(cell);
+      }
+      if (cell.isAMine() && !firstTurn) {
+        cell.setForeground(Color.RED);
+        cell.reveal();
+        revealBoardAndDisplay("You clicked on a mine!");
+
+        return;
+      }
+      if (cell.getValue() == 0) {
+        firstTurn = false;
+        Set<Cell> positions = new HashSet<>();
+        positions.add(cell);
+        cascade(positions);
+      } else {
+        firstTurn = false;
+        cell.reveal();
+      }
+      checkForWin();
     }
-    if (cell.isAMine() && !firstTurn) {
-      cell.setForeground(Color.RED);
-      cell.reveal();
-      revealBoardAndDisplay("You clicked on a mine!");
-      return;
-    }
-    if (cell.getValue() == 0) {
-      firstTurn = false;
-      Set<Cell> positions = new HashSet<>();
-      positions.add(cell);
-      cascade(positions);
-    } else {
-      firstTurn = false;
-      cell.reveal();
-    }
-    checkForWin();
   }
 
   private void revealBoardAndDisplay(String message) {
@@ -403,6 +416,7 @@ public class Minesweeper {
       for (int col = 0; col < gridSize; col++) {
         if (!cells[row][col].isEnabled()) {
           cells[row][col].reveal();
+          cells[row][col].setUnflagged();
         }
       }
     }
@@ -421,7 +435,9 @@ public class Minesweeper {
       // a single element. This is the best way I could think of.
       Cell cell = positionsToClear.iterator().next();
       positionsToClear.remove(cell);
-      cell.reveal();
+      if(!cell.isFlagged) {
+        cell.reveal();
+      }
 
       cell.getNeighbours(reusableStorage);
       for (Cell neighbour : reusableStorage) {
